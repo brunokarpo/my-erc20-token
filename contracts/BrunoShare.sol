@@ -35,15 +35,20 @@ contract BrunoShare is BrunoCoin {
     }
 
     function payProfit() payable public {
+        require(msg.sender == owner);
         uint256 profitBalance = msg.value;
 
         uint256 share = profitBalance / totalSupply;
 
         for(uint i=0; i<shareholders.length; i++) {
             if(balances[shareholders[i]] > 0) {
-                shareholders[i].transfer(share * (balances[shareholders[i]] / 10**uint256(decimals)));
+                uint256 profit = share * (balances[shareholders[i]] / 10**uint256(decimals));
+                shareholders[i].transfer(profit);
+                profitBalance -= profit;
             }
         }
+
+        msg.sender.transfer(profitBalance);
     }
 
 }

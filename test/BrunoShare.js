@@ -4,17 +4,21 @@ const { catchRevert } = require('./exceptions.js');
 
 contract("BrunoShare", async accounts => {
 
+	let instance;
+
+	beforeEach(async () => {
+		instance = await BrunoShare.deployed();
+	});
+
 	describe("when create contract", async () => {
 
 		it("should verify token name", async() => {
-			let instance = await BrunoShare.deployed();
 
 			let tokenName = await instance.name.call();
 			assert.equal(tokenName, "Bruno Coin", "The token name is incorrect");
 		});
 
 		it("should verify token symbol", async () => {
-			let instance = await BrunoShare.deployed();
 
 			let tokenSymbol = await instance.symbol.call();
 
@@ -22,7 +26,7 @@ contract("BrunoShare", async accounts => {
 		});
 
 		it("should verify decimal support", async () => {
-			let instance = await BrunoShare.deployed();
+			
 
 			let decimals = (await instance.decimals.call()).toNumber();
 
@@ -30,7 +34,7 @@ contract("BrunoShare", async accounts => {
 		});
 
 		it("should verify total supply", async () => {
-			let instance = await BrunoShare.deployed();
+			
 
 			let totalSupply = (await instance.totalSupply.call()).toNumber();
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
@@ -43,7 +47,7 @@ contract("BrunoShare", async accounts => {
 	describe("when buying tokens", async() => {
 
 		it("should buy tokens by ethers", async() => {
-			let instance = await BrunoShare.deployed();
+			
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
 
 			const accountAmountBefore = (await instance.balanceOf(accounts[1])).toNumber();
@@ -56,7 +60,7 @@ contract("BrunoShare", async accounts => {
 		});
 
 		it("should send received ether to contract owner account", async () => {
-			let instance = await BrunoShare.deployed();
+			
 
 			const ownerAccountBalanceBefore = await web3.utils.fromWei(await web3.eth.getBalance(accounts[0])); // pega o valor arredondado em ETH no formato string
 			const ownerAccountBalanceBeforeAmount = parseFloat(ownerAccountBalanceBefore) // transforma em float para conseguir fazer calculos e manipulações
@@ -70,7 +74,7 @@ contract("BrunoShare", async accounts => {
 		});
 
 		it("should decrease the amount of tokens from contract", async () => {
-			let instance = await BrunoShare.deployed();
+			
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
 
 			const availableTokensBefore = (await instance.availableTokens.call()).toNumber();
@@ -83,7 +87,7 @@ contract("BrunoShare", async accounts => {
 		});
 
 		it("should emit event when buying tokens", async () => {
-			let instance = await BrunoShare.deployed();
+			
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
 
 			const receipt = await instance.buy({ from: accounts[3], value: 10000000000000000000});
@@ -103,7 +107,7 @@ contract("BrunoShare", async accounts => {
 
 	describe("when having tokens", async () => {
 		it("should send tokens between accounts", async () => {
-			let instance = await BrunoShare.deployed();
+			
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
 
 			const alice = accounts[4];
@@ -120,7 +124,7 @@ contract("BrunoShare", async accounts => {
 		});
 
 		it("should have enough funds to transfer between accounts", async () => {
-			let instance = await BrunoShare.deployed();
+			
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
 
 			const alice = accounts[6];
@@ -132,7 +136,7 @@ contract("BrunoShare", async accounts => {
 		});
 
 		it("should emit event when transfer founds", async () => {
-			let instance = await BrunoShare.deployed();
+			
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
 
 			const alice = accounts[4];
@@ -152,8 +156,12 @@ contract("BrunoShare", async accounts => {
 	});
 
 	describe("when paying profit sharing", async () => {
+		it("only contract owner can pay profit", async () => {
+			await catchRevert ( instance.payProfit( {from: accounts[1], value: 500000000000000000} ));
+		});
+
 		it("must pay profit sharing among shareholders", async () => {
-			let instance = await BrunoShare.deployed();
+			
 			const decimals = Math.pow(10, ((await instance.decimals.call()).toNumber()));
 
 			const alice = accounts[8];
@@ -163,31 +171,27 @@ contract("BrunoShare", async accounts => {
 			await instance.buy({ from: bob, value: 2000000000000000000}); // bob = bob + 2
 
 			const aliceTokenAmount = (await instance.balanceOf(alice)).toNumber();
-			console.log("Alice Token Amount: " + aliceTokenAmount);
 			const bobTokenAmount = (await instance.balanceOf(bob)).toNumber();
-			console.log("Bob Token Amount: " + bobTokenAmount);
 
 			const aliceEtherAmount = await web3.utils.fromWei(await web3.eth.getBalance(alice)); // 89.7
-			console.log("Alice Ether Amount: " + aliceEtherAmount);
 			const bobEtherAmount = await web3.utils.fromWei(await web3.eth.getBalance(bob)); // 85.7
-			console.log("Bob Ether Amount: " + bobEtherAmount);
 
 			await instance.payProfit({ from: accounts[0], value: 50000000000000000000}); // vou pagar 0.05 ether para cada ação.
 
 			const aliceEtherExpected = parseFloat(aliceEtherAmount) + (0.05*(aliceTokenAmount/decimals));
-			console.log("Alice Ether Expected: " + aliceEtherExpected);
 			const bobEtherExpected = parseFloat(bobEtherAmount) + (0.05*(bobTokenAmount/decimals));
-			console.log("Bob Ether Expected: " + bobEtherExpected);
 
 			const aliceEtherFinal = await web3.utils.fromWei(await web3.eth.getBalance(alice));
-			console.log("Alice Ether Final: " + aliceEtherFinal);
 			const bobEtherFinal = await web3.utils.fromWei(await web3.eth.getBalance(bob));
-			console.log("Bob Ether Final: " + bobEtherFinal);
 
-			console.log("Alice Ether Final:", aliceEtherFinal, "Alice Ether Expected:", aliceEtherExpected);
-			assert.equal(parseFloat(aliceEtherFinal), aliceEtherExpected);
-			console.log("Bob Ether Final:", bobEtherFinal, "Bob Ether Expected:", bobEtherExpected);
-			assert.equal(parseFloat(bobEtherFinal), bobEtherExpected);
+			assert.equal(parseFloat(aliceEtherFinal).toPrecision(6), aliceEtherExpected.toPrecision(6));
+			assert.equal(parseFloat(bobEtherFinal).toPrecision(6), bobEtherExpected.toPrecision(6));
+		});
+
+		it("the contract should not keep founds after pay all profit", async () => {
+			await instance.payProfit({ from: accounts[0], value: 50000000000000000000});
+
+			assert.equal(await web3.eth.getBalance(instance.address), 0);
 		});
 	});
 
